@@ -17,5 +17,9 @@ Show a summary of how many files were modified last per user
 
 ---
 
+Script [whenwasthischanged.py](https://raw.githubusercontent.com/MoserMichael/gittools/main/whenwasthischanged.py) - breakdown per months: how many commits were made per month by who?
+
+---
+
 Hope that these scripts might be of help.
 
