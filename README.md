@@ -1,6 +1,6 @@
 ## gittools - understand your organization, by looking at the git log of your project
 
-A collection of scripts for retrieving info from a git repository
+A collection of scripts for analysing the output of ```git log```. When running these scripts: the current directory needs to be within a git repository.
 
 ---
 
@@ -12,12 +12,14 @@ I think this might get some indication of 'who is who'. This information might b
 
 ---
 
-Script [whochangedthisrepolast.sh](https://raw.githubusercontent.com/MoserMichael/gittools/main/whochangedthisrepolast.sh) - for each files in current git repo - show who made the last revision.
-Show a summary of how many files were modified last per user
+Script [whenwasthischanged.py](https://raw.githubusercontent.com/MoserMichael/gittools/main/whenwasthischanged.py) - breakdown per months: how many commits were made per month by who?
 
 ---
 
-Script [whenwasthischanged.py](https://raw.githubusercontent.com/MoserMichael/gittools/main/whenwasthischanged.py) - breakdown per months: how many commits were made per month by who?
+Script [whochangedthisrepolast.sh](https://raw.githubusercontent.com/MoserMichael/gittools/main/whochangedthisrepolast.sh) - for each files in current git repo - show who made the last revision.
+Show a summary of how many files were modified last per user
+
+[whochangedthisrepolast.sh](https://raw.githubusercontent.com/MoserMichael/gittools/main/whochangedthisrepofirst.sh) - some thing, just shows who made the first commit for each file that is currently in the repo
 
 ---
 
