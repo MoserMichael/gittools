@@ -14,6 +14,8 @@ class Options:
         self.show_progress = True
         self.sort_by_field = 'num_commits'
         self.sort_descending  = True
+        self.author_join_leave_resolution = 24 * 3600 * 30.5 * 4  # four 'months' default
+        self.show_joining_leaving = True
 
 
 class RunCommand:
@@ -54,7 +56,7 @@ class CommitEntry:
         self.hash_val = hash_val
         self.author = author
         self.email = email
-        self.time = int(time)
+        self.time = time
 
         # data added upon analysing the commit
         self.files_added = 0
@@ -67,7 +69,7 @@ class CommitEntry:
 
 
     def show(self):
-        print(f"File: A/D/C {self.files_added}/{self.files_deleted}/{self.files_changed}  Lines: A/D/C {self.lines_added}/{self.lines_deleted}/{self.lines_changed}") 
+        print(f"File: A/D/C {self.files_added}/{self.files_deleted}/{self.files_changed}  Lines: A/D/C {self.lines_added}/{self.lines_deleted}/{self.lines_changed}")
 
     def _get_commit_text(self):
         #cmd = f"git show --no-color {self.hash_val}"
@@ -122,10 +124,10 @@ class CommitEntry:
 
 
     def on_line_sequence(self, added_line_seq, deleted_line_seq):
-        self.lines_changed += min(added_line_seq, deleted_line_seq) 
+        self.lines_changed += min(added_line_seq, deleted_line_seq)
         if  added_line_seq > deleted_line_seq:
             self.lines_added += added_line_seq - deleted_line_seq
-        else:    
+        else:
             self.lines_deleted += deleted_line_seq - added_line_seq
 
 
@@ -134,8 +136,6 @@ class Author:
         self.author = author
         self.email = email
         self.commits = []
-        self.first_commit = -1
-        self.last_commit = -1
 
     def add_commit(self, commit):
         self.commits.append(commit)
@@ -163,15 +163,49 @@ class Author:
         print(f"Author: {self.author}, mail: {self.email}, Num-of-commits: {self.num_commits}, files:(Added/Deleted/Changed): {self.files_added}/{self.files_deleted}/{self.files_changed}, lines(Added/Deleted/Changed):{self.lines_added}/{self.lines_deleted}/{self.lines_changed}, time-range: {ftime} to {ttime}")
 
 
-class GitRepoData:
+class AuthorEvent:
 
     def __init__(self):
-        self.authors = {}
+        self.author_first_commit = []
+        self.author_last_commit = []
 
-    def analyse(self, opts):
-        self._get_commits(opts)
+    def add_author_first_commit(self, author):
+        self.author_first_commit.append(author)
+
+    def add_author_last_commit(self, author):
+        self.author_last_commit.append(author)
+
+
+class GitRepoData:
+
+    def __init__(self, opts):
+        self.authors = {}
+        self.first_commit = sys.maxsize
+        self.last_commit  = -sys.maxsize
+        self.join_leave = None
+        self.opts = opts
+
+    def analyse(self):
+        self._get_commits()
         self._analyse()
-        self._sort_for_display(opts)
+        self._sort_for_display()
+        self._analyse_join_and_leave_authors()
+
+    def _analyse_join_and_leave_authors(self):
+        num_units = int((self.last_commit - self.first_commit) / self.opts.author_join_leave_resolution) + 1
+        self.join_leave = [ None ] * num_units
+
+        for author in self.authors.values():
+            join_idx = int( (author.from_date - self.first_commit) / self.opts.author_join_leave_resolution )
+            if not self.join_leave[join_idx]:
+                self.join_leave[join_idx] = AuthorEvent()
+            self.join_leave[join_idx].add_author_first_commit(author)
+
+            leave_idx = int( (author.to_date - self.first_commit) / self.opts.author_join_leave_resolution )
+            if not self.join_leave[leave_idx]:
+                self.join_leave[leave_idx] = AuthorEvent()
+            self.join_leave[leave_idx].add_author_last_commit(author)
+
 
     def _analyse(self):
         for author in self.authors.values():
@@ -183,6 +217,10 @@ class GitRepoData:
             commit.show()
 
         self._show_tenure()
+
+        print("\nDYNAMICS IN CHANGE OF COMMITTERS\n")
+
+        self._show_join_leave()
 
     def _show_tenure(self):
         print("\nAuthor statistics (tenure is defined as time between first and last commit)\n\n")
@@ -199,25 +237,86 @@ class GitRepoData:
         print(f"Stddev tenure:  {GitRepoData._to_months(stddev_tenure)} months")
         print(f"Maximum tenure: {GitRepoData._to_months(max_tenure)} months")
 
+    def _show_join_leave(self):
+        from_time = cur_time = self.first_commit
+        current_headcount = 0
+
+        current_authors=set()
+
+
+        for index, event in enumerate(self.join_leave):
+            cur_time += self.opts.author_join_leave_resolution
+            if cur_time > self.last_commit:
+                cur_time = self.last_commit
+
+            is_last = index == len(self.join_leave) - 1
+
+            if event:
+                current_headcount = self._show_one(current_headcount, from_time, cur_time, event, current_authors, is_last)
+                from_time = cur_time
+
+    def _show_one(self, current_headcount, from_time, to_time, event, current_authors, is_last):
+
+        joined = len(event.author_first_commit)
+        left = 0
+        if not is_last:
+            left = len(event.author_last_commit)
+        next_headcount = current_headcount  + joined - left
+
+        sfrom =  datetime.utcfromtimestamp(from_time).strftime('%H:%M %Y-%m-%d')
+        sto   =  datetime.utcfromtimestamp(to_time).strftime('%H:%M %Y-%m-%d')
+
+        for auth in event.author_first_commit:
+            current_authors.add(auth)
+        if not is_last:
+            for auth in event.author_last_commit:
+                current_authors.remove(auth)
+
+
+        print(f"{sfrom} - {sto}: headcount at start: {current_headcount}, joined: {joined} left: {left} headcount at end: {next_headcount}")
+
+        if self.opts.show_joining_leaving:
+           print("\tfirst-commit:\t", end="")
+           for auth in event.author_first_commit:
+               print( auth.author, end=", ")
+           if not is_last:
+               print("\n\tlast-commit:\t", end="")
+               for auth in event.author_last_commit:
+                   print( auth.author, end=", ")
+           print("")
+
+        if is_last:
+            print("\n\nCurrent authors:\n")
+            for auth in current_authors:
+                print( auth.author, end=", ")
+
+        return  next_headcount
+
     def _to_months(val):
         return val / (24 * 3600 * 30.5)
 
-    def _sort_for_display(self, opts):
+    def _sort_for_display(self):
         self.display_list = list(self.authors.values())
-        self.display_list.sort(key=operator.attrgetter(opts.sort_by_field), reverse=opts.sort_descending)
+        self.display_list.sort(key=operator.attrgetter(self.opts.sort_by_field), reverse=self.opts.sort_descending)
 
-    def _get_commits(self, opts):
+    def _get_commits(self):
         cmd=RunCommand("git log --format='%H,%aN,%ae,%ct'")
         commit_num = 0
         for line in cmd.output.split("\n"):
             line = line.strip()
             if line != "":
-                if opts.show_progress:
+                if self.opts.show_progress:
                     commit_num += 1
                     if commit_num % 10 == 0:
                         print(".", end='', flush=True)
                 #print(f"line: {line}")
-                [ hash_val, author, author_mail, commit_date]  = line.split(',')
+                [ hash_val, author, author_mail, commit_date_s]  = line.split(',')
+
+                commit_date = int(commit_date_s)
+
+                self.first_commit = min(self.first_commit, commit_date)
+                self.last_commit = max(self.last_commit, commit_date)
+
                 #print(f"{hash_val} - {author} - {commit_date}")
                 commit = CommitEntry(hash_val, author, author_mail, commit_date)
 
@@ -236,9 +335,10 @@ def main():
         sys.exit(1)
 
     opt = Options()
-    run = GitRepoData()
-    run.analyse(opt)
+    run = GitRepoData(opt)
+    run.analyse()
     run.show()
+
 
 
 if __name__ == '__main__':
