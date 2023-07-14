@@ -140,6 +140,12 @@ class Author:
     def add_commit(self, commit):
         self.commits.append(commit)
 
+    def display_name(self):
+        auth = self.author.strip()
+        if auth == "":
+            auth = self.email
+        return auth
+
     def analyse(self):
         self.files_added = functools.reduce(lambda x, commit : x + commit.files_added, self.commits, 0)
         self.files_deleted = functools.reduce(lambda x, commit : x + commit.files_deleted, self.commits, 0)
@@ -222,6 +228,8 @@ class GitRepoData:
 
         self._show_join_leave()
 
+        print("")
+
     def _show_tenure(self):
         print("\nAuthor statistics (tenure is defined as time between first and last commit)\n\n")
         print(f"Number of authors: {len(self.display_list)}")
@@ -276,19 +284,20 @@ class GitRepoData:
         print(f"{sfrom} - {sto}: headcount at start: {current_headcount}, joined: {joined} left: {left} headcount at end: {next_headcount}")
 
         if self.opts.show_joining_leaving:
-           print("\tfirst-commit:\t", end="")
-           for auth in event.author_first_commit:
-               print( auth.author, end=", ")
-           if not is_last:
+           if len(event.author_first_commit): 
+               print("\tfirst-commit:\t", end="")
+               for auth in event.author_first_commit:
+                   print( auth.display_name(), end=", ")
+           if not is_last and len(event.author_last_commit):
                print("\n\tlast-commit:\t", end="")
                for auth in event.author_last_commit:
-                   print( auth.author, end=", ")
+                   print( auth.display_name(), end=", ")
            print("")
 
         if is_last:
-            print("\n\nCurrent authors:\n")
+            print("\n\nCurrently active authors:\n")
             for auth in current_authors:
-                print( auth.author, end=", ")
+                print( auth.display_name(), end=", ")
 
         return  next_headcount
 
