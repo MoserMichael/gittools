@@ -11,6 +11,7 @@ usage: $o <github-user>
 shows number of commits of gituser in all remote branches, sorts the branch names by commit count, shows date of last commiit.
 
 Note: does not search the local branch
+Note: don't forget to run git fetch - before running this script (git fetch synchs the remote branches)
 EOF
     exit 1
 fi
