@@ -15,8 +15,6 @@ EOF
     exit 1
 fi
 
-set -x
-
 out=""
 for branch in $(git branch -r | awk '{print $1}'); do
     if [[ $branch != "origin/HEAD" ]]; then
