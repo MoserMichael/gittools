@@ -21,10 +21,9 @@ for branch in $(git branch -r | awk '{print $1}'); do
         cnt=$(git log ${branch} | grep -e '^Author: '${gituser} | wc -l | tr -d '[:space:]')
         if [[ $cnt != "0" ]]; then
             last_commit_date=$(git log ${branch} | grep -A 1 -e '^Author: '${gituser} | sed -n '2p')
-            printf -v out "%s\n" "branch ${branch} user: ${gituser} commit-count: ${cnt} last_commit_date: ${last_commit_date}"
+            printf -v out "%s\n%s" "${out}" "branch ${branch} user: ${gituser} commit-count: ${cnt} last_commit_date: ${last_commit_date}"
         fi
     fi
 done
 
-echo "${out}" 
-#| sort -k 6,6n
+echo "${out}" | sort -k 6,6n
