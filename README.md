@@ -22,6 +22,28 @@ Show a summary of how many files were modified last per user
 [whochangedthisrepofirst.sh](https://raw.githubusercontent.com/MoserMichael/gittools/main/whochangedthisrepofirst.sh) - shows who made the first commit for each file that is currently in the repo
 
 ---
+Command line to count all file extensions by frequency
 
+```
+ git ls-files | sed -n 's/.*\.\([^\.]*\)$/\1/p' | sort | uniq -c | sort -k1,1  -r
+```
+---
+
+git log that looks like SVN log - shows which files changed with each commit
+
+```
+git log --name-status --find-renames
+```
+---
+
+The classics:
+
+```
+git cherry-pick -m 1 COMMIT_HASH
+```
+
+cherry-pick a merge commit from another branch into the current one.
+
+---
 Hope that these scripts might be of help.
 
